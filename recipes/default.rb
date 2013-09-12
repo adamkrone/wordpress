@@ -36,23 +36,24 @@ node.set_unless['wordpress']['keys']['secure_auth'] = secure_password
 node.set_unless['wordpress']['keys']['logged_in'] = secure_password
 node.set_unless['wordpress']['keys']['nonce'] = secure_password
 
-
-if node['wordpress']['version'] == 'latest'
-  # WordPress.org does not provide a sha256 checksum, so we'll use the sha1 they do provide
-  require 'digest/sha1'
-  require 'open-uri'
-  local_file = "#{Chef::Config[:file_cache_path]}/wordpress-latest.tar.gz"
-  latest_sha1 = open('http://wordpress.org/latest.tar.gz.sha1') {|f| f.read }
-  unless File.exists?(local_file) && ( Digest::SHA1.hexdigest(File.read(local_file)) == latest_sha1 )
-    remote_file "#{Chef::Config[:file_cache_path]}/wordpress-latest.tar.gz" do
-      source "http://wordpress.org/latest.tar.gz"
+unless node['wordpress']['local_repo']
+  if node['wordpress']['version'] == 'latest'
+    # WordPress.org does not provide a sha256 checksum, so we'll use the sha1 they do provide
+    require 'digest/sha1'
+    require 'open-uri'
+    local_file = "#{Chef::Config[:file_cache_path]}/wordpress-latest.tar.gz"
+    latest_sha1 = open('http://wordpress.org/latest.tar.gz.sha1') {|f| f.read }
+    unless File.exists?(local_file) && ( Digest::SHA1.hexdigest(File.read(local_file)) == latest_sha1 )
+      remote_file "#{Chef::Config[:file_cache_path]}/wordpress-latest.tar.gz" do
+        source "http://wordpress.org/latest.tar.gz"
+        mode "0644"
+      end
+    end
+  else
+    remote_file "#{Chef::Config[:file_cache_path]}/wordpress-#{node['wordpress']['version']}.tar.gz" do
+      source "#{node['wordpress']['repourl']}/wordpress-#{node['wordpress']['version']}.tar.gz"
       mode "0644"
     end
-  end
-else
-  remote_file "#{Chef::Config[:file_cache_path]}/wordpress-#{node['wordpress']['version']}.tar.gz" do
-    source "#{node['wordpress']['repourl']}/wordpress-#{node['wordpress']['version']}.tar.gz"
-    mode "0644"
   end
 end
 
@@ -64,10 +65,13 @@ directory node['wordpress']['dir'] do
   recursive true
 end
 
-execute "untar-wordpress" do
-  cwd node['wordpress']['dir']
-  command "tar --strip-components 1 -xzf #{Chef::Config[:file_cache_path]}/wordpress-#{node['wordpress']['version']}.tar.gz"
-  creates "#{node['wordpress']['dir']}/wp-settings.php"
+
+unless node['wordpress']['local_repo']
+  execute "untar-wordpress" do
+    cwd node['wordpress']['dir']
+    command "tar --strip-components 1 -xzf #{Chef::Config[:file_cache_path]}/wordpress-#{node['wordpress']['version']}.tar.gz"
+    creates "#{node['wordpress']['dir']}/wp-settings.php"
+  end
 end
 
 execute "mysql-install-wp-privileges" do
@@ -116,21 +120,24 @@ log "wordpress_install_message" do
   message "Navigate to 'http://#{server_fqdn}/wp-admin/install.php' to complete wordpress installation"
 end
 
-template "#{node['wordpress']['dir']}/wp-config.php" do
-  source "wp-config.php.erb"
-  owner "root"
-  group "root"
-  mode "0644"
-  variables(
-    :database        => node['wordpress']['db']['database'],
-    :user            => node['wordpress']['db']['user'],
-    :password        => node['wordpress']['db']['password'],
-    :auth_key        => node['wordpress']['keys']['auth'],
-    :secure_auth_key => node['wordpress']['keys']['secure_auth'],
-    :logged_in_key   => node['wordpress']['keys']['logged_in'],
-    :nonce_key       => node['wordpress']['keys']['nonce']
-  )
-  notifies :write, "log[wordpress_install_message]"
+
+unless node['wordpress']['local_repo']
+  template "#{node['wordpress']['dir']}/wp-config.php" do
+    source "wp-config.php.erb"
+    owner "root"
+    group "root"
+    mode "0644"
+    variables(
+      :database        => node['wordpress']['db']['database'],
+      :user            => node['wordpress']['db']['user'],
+      :password        => node['wordpress']['db']['password'],
+      :auth_key        => node['wordpress']['keys']['auth'],
+      :secure_auth_key => node['wordpress']['keys']['secure_auth'],
+      :logged_in_key   => node['wordpress']['keys']['logged_in'],
+      :nonce_key       => node['wordpress']['keys']['nonce']
+    )
+    notifies :write, "log[wordpress_install_message]"
+  end
 end
 
 apache_site "000-default" do
