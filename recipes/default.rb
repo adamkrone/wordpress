@@ -145,7 +145,7 @@ if node['wordpress']['content']['uploads']
   end
 
   execute "untar-wp-uploads" do
-    cwd "#{node['wordpress']['dir']}/wordpress/wp-content/"
+    cwd "#{node['wordpress']['dir']}/wp-content/"
     command "tar -xzf #{Chef::Config[:file_cache_path]}/wp-uploads.tar.gz"
     creates "#{node['wordpress']['dir']}/wp-content/uploads"
   end
