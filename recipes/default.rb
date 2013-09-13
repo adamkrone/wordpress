@@ -138,6 +138,19 @@ template "#{node['wordpress']['dir']}/wp-config.php" do
   notifies :write, "log[wordpress_install_message]"
 end
 
+if node['wordpress']['content']['uploads']
+  remote_file "#{Chef::Config[:file_cache_path]}/wp-uploads.tar.gz" do
+    source node['wordpress']['content']['uploads']
+    mode "0644"
+  end
+
+  execute "untar-wp-uploads" do
+    cwd "#{node['wordpress']['dir']}/wordpress"
+    command "tar -xzf #{Chef::Config[:file_cache_path]}/wp-uploads.tar.gz"
+    creates "#{node['wordpress']['dir']}/wp-content/uploads"
+  end
+end
+
 apache_site "000-default" do
   enable false
 end
