@@ -98,6 +98,11 @@ if node['wordpress']['db']['import_url']
     mode "0644"
   end
 
+  execute "untar-mysql-backup" do
+    command "tar -xzf #{Chef::Config[:file_cache_path]}/backup.sql.tar.gz"
+    creates "#{Chef::Config[:file_cache_path]}/backup.sql"
+  end
+
   execute "import-db"
     command "mysql --password=#{node['mysql']['server_root_password']} < #{Chef::Config[:file_cache_path]}/backup.sql"
     not_if ("mysql --password=#{node['mysql']['server_root_password']} --execute='SHOW DATABASES' | grep #{node['wordpress']['db']['database']}")
