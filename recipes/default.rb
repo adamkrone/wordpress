@@ -104,7 +104,7 @@ if node['wordpress']['db']['import_url']
     action :run
   end
 
-  execute "import-db"
+  execute "import-db" do
     command "mysql --password=#{node['mysql']['server_root_password']} < #{Chef::Config[:file_cache_path]}/backup.sql"
     not_if ("mysql --password=#{node['mysql']['server_root_password']} --execute='SHOW DATABASES' | grep #{node['wordpress']['db']['database']}")
     action :run
