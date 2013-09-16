@@ -92,17 +92,30 @@ template "#{node['mysql']['conf_dir']}/wp-grants.sql" do
   notifies :run, "execute[mysql-install-wp-privileges]", :immediately
 end
 
-execute "create #{node['wordpress']['db']['database']} database" do
-  command "/usr/bin/mysqladmin -u root -p\"#{node['mysql']['server_root_password']}\" create #{node['wordpress']['db']['database']}"
-  not_if do
-    # Make sure gem is detected if it was just installed earlier in this recipe
-    require 'rubygems'
-    Gem.clear_paths
-    require 'mysql'
-    m = Mysql.new("localhost", "root", node['mysql']['server_root_password'])
-    m.list_dbs.include?(node['wordpress']['db']['database'])
+if node['wordpress']['db']['import_url']
+  remote_file "#{Chef::Config[:file_cache_path]}/backup.sql" do
+    source node['wordpress']['db']['import_url']
+    mode "0644"
   end
-  notifies :create, "ruby_block[save node data]", :immediately unless Chef::Config[:solo]
+
+  execute "import-db"
+    command "mysql --password=#{node['mysql']['server_root_password']} < #{Chef::Config[:file_cache_path]}/backup.sql"
+    not_if ("mysql --password=#{node['mysql']['server_root_password']} --execute='SHOW DATABASES' | grep #{node['wordpress']['db']['database']}")
+    action :run
+  end
+else
+  execute "create #{node['wordpress']['db']['database']} database" do
+    command "/usr/bin/mysqladmin -u root -p\"#{node['mysql']['server_root_password']}\" create #{node['wordpress']['db']['database']}"
+    not_if do
+      # Make sure gem is detected if it was just installed earlier in this recipe
+      require 'rubygems'
+      Gem.clear_paths
+      require 'mysql'
+      m = Mysql.new("localhost", "root", node['mysql']['server_root_password'])
+      m.list_dbs.include?(node['wordpress']['db']['database'])
+    end
+    notifies :create, "ruby_block[save node data]", :immediately unless Chef::Config[:solo]
+  end
 end
 
 # save node data after writing the MYSQL root password, so that a failed chef-client run that gets this far doesn't cause an unknown password to get applied to the box without being saved in the node data.
