@@ -93,7 +93,7 @@ template "#{node['mysql']['conf_dir']}/wp-grants.sql" do
 end
 
 if node['wordpress']['db']['import_url']
-  remote_file "#{Chef::Config[:file_cache_path]}/backup.sql" do
+  remote_file "#{Chef::Config[:file_cache_path]}/backup.sql.tar.gz" do
     source node['wordpress']['db']['import_url']
     mode "0644"
   end
