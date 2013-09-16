@@ -101,6 +101,7 @@ if node['wordpress']['db']['import_url']
   execute "untar-mysql-backup" do
     command "tar -xzf #{Chef::Config[:file_cache_path]}/backup.sql.tar.gz"
     creates "#{Chef::Config[:file_cache_path]}/backup.sql"
+    action :run
   end
 
   execute "import-db"
