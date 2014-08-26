@@ -140,23 +140,24 @@ log "wordpress_install_message" do
   message "Navigate to 'http://#{server_fqdn}/wp-admin/install.php' to complete wordpress installation"
 end
 
-
-template "#{node['wordpress']['dir']}/wp-config.php" do
-  source "wp-config.php.erb"
-  owner "root"
-  group "root"
-  mode "0644"
-  variables(
-    :host            => node['wordpress']['db']['host'],
-    :database        => node['wordpress']['db']['database'],
-    :user            => node['wordpress']['db']['user'],
-    :password        => node['wordpress']['db']['password'],
-    :auth_key        => node['wordpress']['keys']['auth'],
-    :secure_auth_key => node['wordpress']['keys']['secure_auth'],
-    :logged_in_key   => node['wordpress']['keys']['logged_in'],
-    :nonce_key       => node['wordpress']['keys']['nonce']
-  )
-  notifies :write, "log[wordpress_install_message]"
+unless node['wordpress']['local_repo']
+  template "#{node['wordpress']['dir']}/wp-config.php" do
+    source "wp-config.php.erb"
+    owner "root"
+    group "root"
+    mode "0644"
+    variables(
+      :host            => node['wordpress']['db']['host'],
+      :database        => node['wordpress']['db']['database'],
+      :user            => node['wordpress']['db']['user'],
+      :password        => node['wordpress']['db']['password'],
+      :auth_key        => node['wordpress']['keys']['auth'],
+      :secure_auth_key => node['wordpress']['keys']['secure_auth'],
+      :logged_in_key   => node['wordpress']['keys']['logged_in'],
+      :nonce_key       => node['wordpress']['keys']['nonce']
+    )
+    notifies :write, "log[wordpress_install_message]"
+  end
 end
 
 if node['wordpress']['content']['uploads']
